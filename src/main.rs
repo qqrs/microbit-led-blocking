@@ -5,7 +5,10 @@ use cortex_m_rt::entry;
 use cortex_m::asm;
 use microbit::{
     Board,
-    hal::prelude::*,
+    hal::{
+        prelude::*,
+        Timer,
+    }
 };
 use panic_rtt_target as _;
 use rtt_target::{rprintln, rtt_init_print};
@@ -18,14 +21,36 @@ fn main() -> ! {
 
     let mut board = Board::take().unwrap();
 
+    let stat = board.CLOCK.hfclkstat.read().bits();
+    rprintln!("{:032b}", stat);
+
+    board.CLOCK.tasks_hfclkstart.write(|w| w.tasks_hfclkstart().trigger());
+
+    for _ in 0..(1_600_000/4) {
+        asm::nop()
+    }
+
+    let stat = board.CLOCK.hfclkstat.read().bits();
+    rprintln!("{:032b}", stat);
+
+    //let mut timer = Timer::new(board.TIMER1);
+    let mut ticker = Timer::periodic(board.TIMER2);
+    ticker.start(100_000u32);
+
     toggle(&mut board.display_pins.row1);
     toggle(&mut board.display_pins.col1);
     
     loop {
-        for _ in 0..16_000_000 {
-            asm::nop()
-        }
-        rprintln!("toggle");
+        //for _ in 0..(1_600_000/4) {
+            //asm::nop()
+        //}
+
+        //timer.start(100_000u32);
+        //nb::block!(timer.wait());
+
+        nb::block!(ticker.wait());
+
+        //rprintln!("toggle");
         toggle(&mut board.display_pins.col1);
     }
 }
