@@ -13,6 +13,7 @@ use microbit::{
 use panic_rtt_target as _;
 use rtt_target::{rprintln, rtt_init_print};
 use void::{ResultVoidExt, Void};
+use microbit::hal::gpio;
 
 #[entry]
 fn main() -> ! {
@@ -34,6 +35,8 @@ fn main() -> ! {
     toggle(&mut board.display_pins.row1);
     toggle(&mut board.display_pins.col1);
 
+    unsafe{ COL1 = Some(board.display_pins.col1) };
+
     let mut ticker = Timer::periodic(board.TIMER0);
     ticker.start(100_000u32);
     ticker.enable_interrupt();
@@ -49,15 +52,19 @@ fn main() -> ! {
     }
 }
 
+
+static mut COL1 : Option<gpio::p0::P0_28<gpio::Output<gpio::PushPull>>> = None;
+
 #[interrupt]
 fn TIMER0() {
     rprintln!("timer 0 fired");
 
-    toggle(&mut board.display_pins.col1);
+    //toggle(&mut board.display_pins.col1);
 
     // clear the event register
     cortex_m::interrupt::free(|_cs| {
         unsafe { Peripherals::steal() }.TIMER0.timer_reset_event();
+        unsafe { toggle(COL1.as_mut().unwrap()) };
     });
 }
 
